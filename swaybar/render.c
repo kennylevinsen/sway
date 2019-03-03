@@ -39,9 +39,13 @@ static uint32_t render_status_line_error(cairo_t *cairo,
 		output->bar->config->status_padding * output->scale;
 
 	char *font = output->bar->config->font;
+
+	uint32_t lr_anchors = ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT | ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+	bool is_horiz = (output->bar->config->position & lr_anchors) == lr_anchors;
+
 	int text_width, text_height;
 	get_text_size(cairo, font, &text_width, &text_height, NULL,
-			output->scale, false, "%s", error);
+			output->scale, !is_horiz, false, "%s", error);
 
 	uint32_t ideal_height = text_height + ws_vertical_padding * 2;
 	uint32_t ideal_surface_height = ideal_height / output->scale;
@@ -53,7 +57,7 @@ static uint32_t render_status_line_error(cairo_t *cairo,
 
 	double text_y = breadth / 2.0 - text_height / 2.0;
 	cairo_move_to(cairo, *x, (int)floor(text_y));
-	pango_printf(cairo, font, output->scale, false, "%s", error);
+	pango_printf(cairo, font, output->scale, !is_horiz, false, "%s", error);
 	*x -= margin;
 	return 0;
 }
@@ -69,9 +73,12 @@ static uint32_t render_status_line_text(cairo_t *cairo,
 	cairo_set_source_u32(cairo, output->focused ?
 			config->colors.focused_statusline : config->colors.statusline);
 
+	uint32_t lr_anchors = ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT | ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+	bool is_horiz = (output->bar->config->position & lr_anchors) == lr_anchors;
+
 	int text_width, text_height;
 	get_text_size(cairo, config->font, &text_width, &text_height, NULL,
-			output->scale, config->pango_markup, "%s", text);
+			output->scale, !is_horiz, config->pango_markup, "%s", text);
 
 	double ws_vertical_padding = config->status_padding * output->scale;
 	int margin = 3 * output->scale;
@@ -88,7 +95,7 @@ static uint32_t render_status_line_text(cairo_t *cairo,
 	double text_y = height / 2.0 - text_height / 2.0;
 	cairo_move_to(cairo, *x, (int)floor(text_y));
 	pango_printf(cairo, config->font, output->scale,
-			config->pango_markup, "%s", text);
+			!is_horiz, config->pango_markup, "%s", text);
 	*x -= margin;
 	return 0;
 }
@@ -151,9 +158,12 @@ static uint32_t render_status_block(cairo_t *cairo,
 
 	struct swaybar_config *config = output->bar->config;
 
+	uint32_t lr_anchors = ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT | ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+	bool is_horiz = (output->bar->config->position & lr_anchors) == lr_anchors;
+
 	int text_width, text_height;
 	get_text_size(cairo, config->font, &text_width, &text_height, NULL,
-			output->scale, block->markup, "%s", block->full_text);
+			output->scale, !is_horiz, block->markup, "%s", block->full_text);
 
 	int margin = 3 * output->scale;
 	double ws_vertical_padding = config->status_padding * output->scale;
@@ -162,7 +172,7 @@ static uint32_t render_status_block(cairo_t *cairo,
 	if (block->min_width_str) {
 		int w;
 		get_text_size(cairo, config->font, &w, NULL, NULL,
-				output->scale, block->markup, "%s", block->min_width_str);
+				output->scale, !is_horiz, block->markup, "%s", block->min_width_str);
 		block->min_width = w;
 	}
 	if (width < block->min_width) {
@@ -192,7 +202,7 @@ static uint32_t render_status_block(cairo_t *cairo,
 	if (!edge) {
 		if (config->sep_symbol) {
 			get_text_size(cairo, config->font, &sep_width, &sep_height, NULL,
-					output->scale, false, "%s", config->sep_symbol);
+					output->scale, !is_horiz, false, "%s", config->sep_symbol);
 			uint32_t _ideal_height = sep_height + ws_vertical_padding * 2;
 			uint32_t _ideal_surface_height = _ideal_height / output->scale;
 			if (!output->bar->config->breadth &&
@@ -264,7 +274,7 @@ static uint32_t render_status_block(cairo_t *cairo,
 	color = block->urgent ? config->colors.urgent_workspace.text : color;
 	cairo_set_source_u32(cairo, color);
 	pango_printf(cairo, config->font, output->scale,
-			block->markup, "%s", block->full_text);
+			!is_horiz, block->markup, "%s", block->full_text);
 	x_pos += width;
 
 	if (block->border && block->border_right > 0) {
@@ -283,7 +293,7 @@ static uint32_t render_status_block(cairo_t *cairo,
 		if (config->sep_symbol) {
 			offset = x_pos + (sep_block_width - sep_width) / 2;
 			cairo_move_to(cairo, offset, height / 2.0 - sep_height / 2.0);
-			pango_printf(cairo, config->font, output->scale, false,
+			pango_printf(cairo, config->font, output->scale, !is_horiz, false,
 					"%s", config->sep_symbol);
 		} else {
 			cairo_set_line_width(cairo, 1);
@@ -332,9 +342,13 @@ static uint32_t render_binding_mode_indicator(cairo_t *cairo,
 	}
 
 	struct swaybar_config *config = output->bar->config;
+
+	uint32_t lr_anchors = ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT | ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+	bool is_horiz = (output->bar->config->position & lr_anchors) == lr_anchors;
+
 	int text_width, text_height;
 	get_text_size(cairo, config->font, &text_width, &text_height, NULL,
-			output->scale, output->bar->mode_pango_markup,
+			output->scale, !is_horiz, output->bar->mode_pango_markup,
 			"%s", mode);
 
 	int ws_vertical_padding = WS_VERTICAL_PADDING * output->scale;
@@ -351,6 +365,7 @@ static uint32_t render_binding_mode_indicator(cairo_t *cairo,
 	uint32_t width = text_width + ws_horizontal_padding * 2 + border_width * 2;
 
 	uint32_t height = output->breadth * output->scale;
+
 	cairo_set_source_u32(cairo, config->colors.binding_mode.background);
 	cairo_rectangle(cairo, l, 0, width, height);
 	cairo_fill(cairo);
@@ -369,7 +384,8 @@ static uint32_t render_binding_mode_indicator(cairo_t *cairo,
 	cairo_set_source_u32(cairo, config->colors.binding_mode.text);
 	cairo_move_to(cairo, l + width / 2 - text_width / 2, (int)floor(text_y));
 	pango_printf(cairo, config->font, output->scale,
-			output->bar->mode_pango_markup, "%s", mode);
+			!is_horiz, output->bar->mode_pango_markup, "%s", mode);
+
 	return 0;
 }
 
@@ -400,9 +416,12 @@ static uint32_t render_workspace_button(cairo_t *cairo,
 
 	uint32_t breadth = output->breadth * output->scale;
 
+	uint32_t lr_anchors = ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT | ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+	bool is_horiz = (output->bar->config->position & lr_anchors) == lr_anchors;
+
 	int text_width, text_height;
 	get_text_size(cairo, config->font, &text_width, &text_height, NULL,
-			output->scale, config->pango_markup, "%s", ws->label);
+			output->scale, !is_horiz, config->pango_markup, "%s", ws->label);
 
 	int ws_vertical_padding = WS_VERTICAL_PADDING * output->scale;
 	int ws_horizontal_padding = WS_HORIZONTAL_PADDING * output->scale;
@@ -421,7 +440,6 @@ static uint32_t render_workspace_button(cairo_t *cairo,
 	cairo_set_source_u32(cairo, box_colors.background);
 	cairo_rectangle(cairo, *l, 0, length, breadth);
 	cairo_fill(cairo);
-
 	cairo_set_source_u32(cairo, box_colors.border);
 	cairo_rectangle(cairo, *l, 0, length, border_width);
 	cairo_fill(cairo);
@@ -435,7 +453,8 @@ static uint32_t render_workspace_button(cairo_t *cairo,
 	double text_y = breadth / 2.0 - text_height / 2.0;
 	cairo_set_source_u32(cairo, box_colors.text);
 	cairo_move_to(cairo, *l + length / 2 - text_width / 2, (int)floor(text_y));
-	pango_printf(cairo, config->font, output->scale, config->pango_markup,
+
+	pango_printf(cairo, config->font, output->scale, !is_horiz, config->pango_markup,
 			"%s", ws->label);
 
 	struct swaybar_hotspot *hotspot = calloc(1, sizeof(struct swaybar_hotspot));
@@ -463,8 +482,11 @@ static uint32_t render_to_cairo(cairo_t *cairo, struct swaybar_output *output) {
 	}
 	cairo_paint(cairo);
 
+	uint32_t lr_anchors = ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT | ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+	bool is_horiz = (output->bar->config->position & lr_anchors) == lr_anchors;
+
 	int th;
-	get_text_size(cairo, config->font, NULL, &th, NULL, output->scale, false, "");
+	get_text_size(cairo, config->font, NULL, &th, NULL, output->scale, !is_horiz, false, "");
 	uint32_t max_breadth = (th + WS_VERTICAL_PADDING * 4) / output->scale;
 	/*
 	 * Each render_* function takes the actual height of the bar, and returns

@@ -83,7 +83,7 @@ PangoLayout *get_pango_layout(cairo_t *cairo, const char *font,
 }
 
 void get_text_size(cairo_t *cairo, const char *font, int *width, int *height,
-		int *baseline, double scale, bool markup, const char *fmt, ...) {
+		int *baseline, double scale, bool vert, bool markup, const char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	// Add one since vsnprintf excludes null terminator.
@@ -100,6 +100,10 @@ void get_text_size(cairo_t *cairo, const char *font, int *width, int *height,
 	va_end(args);
 
 	PangoLayout *layout = get_pango_layout(cairo, font, buf, scale, markup);
+	if (vert) {
+		pango_context_set_base_gravity (pango_layout_get_context(layout), PANGO_GRAVITY_EAST);
+		pango_context_set_gravity_hint(pango_layout_get_context(layout), PANGO_GRAVITY_HINT_STRONG);
+	}
 	pango_cairo_update_layout(cairo, layout);
 	pango_layout_get_pixel_size(layout, width, height);
 	if (baseline) {
@@ -110,7 +114,7 @@ void get_text_size(cairo_t *cairo, const char *font, int *width, int *height,
 }
 
 void pango_printf(cairo_t *cairo, const char *font,
-		double scale, bool markup, const char *fmt, ...) {
+		double scale, bool vert, bool markup, const char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
 	// Add one since vsnprintf excludes null terminator.
@@ -130,6 +134,10 @@ void pango_printf(cairo_t *cairo, const char *font,
 	cairo_font_options_t *fo = cairo_font_options_create();
 	cairo_get_font_options(cairo, fo);
 	pango_cairo_context_set_font_options(pango_layout_get_context(layout), fo);
+	if (vert) {
+		pango_context_set_base_gravity (pango_layout_get_context(layout), PANGO_GRAVITY_EAST);
+		pango_context_set_gravity_hint(pango_layout_get_context(layout), PANGO_GRAVITY_HINT_STRONG);
+	}
 	cairo_font_options_destroy(fo);
 	pango_cairo_update_layout(cairo, layout);
 	pango_cairo_show_layout(cairo, layout);
