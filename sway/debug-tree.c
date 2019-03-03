@@ -84,7 +84,7 @@ static int draw_node(cairo_t *cairo, struct sway_node *node,
 	int text_width, text_height;
 	char *buffer = get_string(node);
 	get_text_size(cairo, "monospace", &text_width, &text_height, NULL,
-		1, false, buffer);
+		1, false, false, buffer);
 	cairo_save(cairo);
 	cairo_rectangle(cairo, x + 2, y, text_width - 2, text_height);
 	cairo_set_source_u32(cairo, 0xFFFFFFE0);
@@ -114,7 +114,7 @@ static int draw_node(cairo_t *cairo, struct sway_node *node,
 	if (focus == node) {
 		cairo_set_source_u32(cairo, 0x0000FFFF);
 	}
-	pango_printf(cairo, "monospace", 1, false, buffer);
+	pango_printf(cairo, "monospace", 1, false, false, buffer);
 	free(buffer);
 	return height;
 }
