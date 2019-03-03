@@ -30,7 +30,7 @@ static uint32_t render_status_line_error(cairo_t *cairo,
 		return 0;
 	}
 
-	uint32_t height = output->height * output->scale;
+	uint32_t breadth = output->breadth * output->scale;
 
 	cairo_set_source_u32(cairo, 0xFF0000FF);
 
@@ -45,17 +45,17 @@ static uint32_t render_status_line_error(cairo_t *cairo,
 
 	uint32_t ideal_height = text_height + ws_vertical_padding * 2;
 	uint32_t ideal_surface_height = ideal_height / output->scale;
-	if (!output->bar->config->height &&
-			output->height < ideal_surface_height) {
+	if (!output->bar->config->breadth &&
+			output->breadth < ideal_surface_height) {
 		return ideal_surface_height;
 	}
 	*x -= text_width + margin;
 
-	double text_y = height / 2.0 - text_height / 2.0;
+	double text_y = breadth / 2.0 - text_height / 2.0;
 	cairo_move_to(cairo, *x, (int)floor(text_y));
 	pango_printf(cairo, font, output->scale, false, "%s", error);
 	*x -= margin;
-	return output->height;
+	return 0;
 }
 
 static uint32_t render_status_line_text(cairo_t *cairo,
@@ -78,19 +78,19 @@ static uint32_t render_status_line_text(cairo_t *cairo,
 
 	uint32_t ideal_height = text_height + ws_vertical_padding * 2;
 	uint32_t ideal_surface_height = ideal_height / output->scale;
-	if (!output->bar->config->height &&
-			output->height < ideal_surface_height) {
+	if (!output->bar->config->breadth &&
+			output->breadth < ideal_surface_height) {
 		return ideal_surface_height;
 	}
 
 	*x -= text_width + margin;
-	uint32_t height = output->height * output->scale;
+	uint32_t height = output->breadth * output->scale;
 	double text_y = height / 2.0 - text_height / 2.0;
 	cairo_move_to(cairo, *x, (int)floor(text_y));
 	pango_printf(cairo, config->font, output->scale,
 			config->pango_markup, "%s", text);
 	*x -= margin;
-	return output->height;
+	return 0;
 }
 
 static void render_sharp_rectangle(cairo_t *cairo, uint32_t color,
@@ -143,7 +143,7 @@ static void i3bar_block_unref_callback(void *data) {
 }
 
 static uint32_t render_status_block(cairo_t *cairo,
-		struct swaybar_output *output, struct i3bar_block *block, double *x,
+		struct swaybar_output *output, struct i3bar_block *block, double *l,
 		bool edge) {
 	if (!block->full_text || !*block->full_text) {
 		return 0;
@@ -172,18 +172,18 @@ static uint32_t render_status_block(cairo_t *cairo,
 	double block_width = width;
 	uint32_t ideal_height = text_height + ws_vertical_padding * 2;
 	uint32_t ideal_surface_height = ideal_height / output->scale;
-	if (!output->bar->config->height &&
-			output->height < ideal_surface_height) {
+	if (!output->bar->config->breadth &&
+			output->breadth < ideal_surface_height) {
 		return ideal_surface_height;
 	}
 
-	*x -= width;
+	*l -= width;
 	if ((block->border || block->urgent) && block->border_left > 0) {
-		*x -= (block->border_left * output->scale + margin);
+		*l -= (block->border_left * output->scale + margin);
 		block_width += block->border_left * output->scale + margin;
 	}
 	if ((block->border || block->urgent) && block->border_right > 0) {
-		*x -= (block->border_right * output->scale + margin);
+		*l -= (block->border_right * output->scale + margin);
 		block_width += block->border_right * output->scale + margin;
 	}
 
@@ -195,23 +195,24 @@ static uint32_t render_status_block(cairo_t *cairo,
 					output->scale, false, "%s", config->sep_symbol);
 			uint32_t _ideal_height = sep_height + ws_vertical_padding * 2;
 			uint32_t _ideal_surface_height = _ideal_height / output->scale;
-			if (!output->bar->config->height &&
-					output->height < _ideal_surface_height) {
+			if (!output->bar->config->breadth &&
+					output->breadth < _ideal_surface_height) {
 				return _ideal_surface_height;
 			}
 			if (sep_width > sep_block_width) {
 				sep_block_width = sep_width + margin * 2;
 			}
 		}
-		*x -= sep_block_width;
+		*l -= sep_block_width;
 	} else if (config->status_edge_padding) {
-		*x -= config->status_edge_padding * output->scale;
+		*l -= config->status_edge_padding * output->scale;
 	}
 
-	uint32_t height = output->height * output->scale;
+	uint32_t height = output->breadth * output->scale;
 	if (output->bar->status->click_events) {
 		struct swaybar_hotspot *hotspot = calloc(1, sizeof(struct swaybar_hotspot));
-		hotspot->x = *x;
+
+		hotspot->x = *l;
 		hotspot->y = 0;
 		hotspot->width = width;
 		hotspot->height = height;
@@ -222,7 +223,7 @@ static uint32_t render_status_block(cairo_t *cairo,
 		wl_list_insert(&output->hotspots, &hotspot->link);
 	}
 
-	double x_pos = *x;
+	double x_pos = *l;
 	double y_pos = ws_vertical_padding;
 	double render_height = height - ws_vertical_padding * 2;
 
@@ -291,32 +292,32 @@ static uint32_t render_status_block(cairo_t *cairo,
 			cairo_stroke(cairo);
 		}
 	}
-	return output->height;
+	return 0;
 }
 
 static uint32_t render_status_line_i3bar(cairo_t *cairo,
-		struct swaybar_output *output, double *x) {
-	uint32_t max_height = 0;
-	bool edge = *x == output->width * output->scale;
+		struct swaybar_output *output, double *l) {
+	uint32_t max_breadth = 0;
+	bool edge = *l == output->breadth * output->scale;
 	struct i3bar_block *block;
 	wl_list_for_each(block, &output->bar->status->blocks, link) {
-		uint32_t h = render_status_block(cairo, output, block, x, edge);
-		max_height = h > max_height ? h : max_height;
+		uint32_t b = render_status_block(cairo, output, block, l, edge);
+		max_breadth = b > max_breadth ? b : max_breadth;
 		edge = false;
 	}
-	return max_height;
+	return max_breadth;
 }
 
 static uint32_t render_status_line(cairo_t *cairo,
-		struct swaybar_output *output, double *x) {
+		struct swaybar_output *output, double *l) {
 	struct status_line *status = output->bar->status;
 	switch (status->protocol) {
 	case PROTOCOL_ERROR:
-		return render_status_line_error(cairo, output, x);
+		return render_status_line_error(cairo, output, l);
 	case PROTOCOL_TEXT:
-		return render_status_line_text(cairo, output, x);
+		return render_status_line_text(cairo, output, l);
 	case PROTOCOL_I3BAR:
-		return render_status_line_i3bar(cairo, output, x);
+		return render_status_line_i3bar(cairo, output, l);
 	case PROTOCOL_UNDEF:
 		return 0;
 	}
@@ -324,7 +325,7 @@ static uint32_t render_status_line(cairo_t *cairo,
 }
 
 static uint32_t render_binding_mode_indicator(cairo_t *cairo,
-		struct swaybar_output *output, double x) {
+		struct swaybar_output *output, double l) {
 	const char *mode = output->bar->mode;
 	if (!mode) {
 		return 0;
@@ -343,33 +344,33 @@ static uint32_t render_binding_mode_indicator(cairo_t *cairo,
 	uint32_t ideal_height = text_height + ws_vertical_padding * 2
 		+ border_width * 2;
 	uint32_t ideal_surface_height = ideal_height / output->scale;
-	if (!output->bar->config->height &&
-			output->height < ideal_surface_height) {
+	if (!output->bar->config->breadth &&
+			output->breadth < ideal_surface_height) {
 		return ideal_surface_height;
 	}
 	uint32_t width = text_width + ws_horizontal_padding * 2 + border_width * 2;
 
-	uint32_t height = output->height * output->scale;
+	uint32_t height = output->breadth * output->scale;
 	cairo_set_source_u32(cairo, config->colors.binding_mode.background);
-	cairo_rectangle(cairo, x, 0, width, height);
+	cairo_rectangle(cairo, l, 0, width, height);
 	cairo_fill(cairo);
 
 	cairo_set_source_u32(cairo, config->colors.binding_mode.border);
-	cairo_rectangle(cairo, x, 0, width, border_width);
+	cairo_rectangle(cairo, l, 0, width, border_width);
 	cairo_fill(cairo);
-	cairo_rectangle(cairo, x, 0, border_width, height);
+	cairo_rectangle(cairo, l, 0, border_width, height);
 	cairo_fill(cairo);
-	cairo_rectangle(cairo, x + width - border_width, 0, border_width, height);
+	cairo_rectangle(cairo, l + width - border_width, 0, border_width, height);
 	cairo_fill(cairo);
-	cairo_rectangle(cairo, x, height - border_width, width, border_width);
+	cairo_rectangle(cairo, l, height - border_width, width, border_width);
 	cairo_fill(cairo);
 
 	double text_y = height / 2.0 - text_height / 2.0;
 	cairo_set_source_u32(cairo, config->colors.binding_mode.text);
-	cairo_move_to(cairo, x + width / 2 - text_width / 2, (int)floor(text_y));
+	cairo_move_to(cairo, l + width / 2 - text_width / 2, (int)floor(text_y));
 	pango_printf(cairo, config->font, output->scale,
 			output->bar->mode_pango_markup, "%s", mode);
-	return output->height;
+	return 0;
 }
 
 static enum hotspot_event_handling workspace_hotspot_callback(
@@ -384,7 +385,7 @@ static enum hotspot_event_handling workspace_hotspot_callback(
 
 static uint32_t render_workspace_button(cairo_t *cairo,
 		struct swaybar_output *output,
-		struct swaybar_workspace *ws, double *x) {
+		struct swaybar_workspace *ws, double *l) {
 	struct swaybar_config *config = output->bar->config;
 	struct box_colors box_colors;
 	if (ws->urgent) {
@@ -397,7 +398,7 @@ static uint32_t render_workspace_button(cairo_t *cairo,
 		box_colors = config->colors.inactive_workspace;
 	}
 
-	uint32_t height = output->height * output->scale;
+	uint32_t breadth = output->breadth * output->scale;
 
 	int text_width, text_height;
 	get_text_size(cairo, config->font, &text_width, &text_height, NULL,
@@ -409,46 +410,46 @@ static uint32_t render_workspace_button(cairo_t *cairo,
 
 	uint32_t ideal_height = ws_vertical_padding * 2 + text_height
 		+ border_width * 2;
-	uint32_t ideal_surface_height = ideal_height / output->scale;
-	if (!output->bar->config->height &&
-			output->height < ideal_surface_height) {
-		return ideal_surface_height;
+	uint32_t ideal_surface_breadth = ideal_height / output->scale;
+	if (!output->bar->config->breadth &&
+			output->breadth < ideal_surface_breadth) {
+		return ideal_surface_breadth;
 	}
 
-	uint32_t width = ws_horizontal_padding * 2 + text_width + border_width * 2;
+	uint32_t length = ws_horizontal_padding * 2 + text_width + border_width * 2;
 
 	cairo_set_source_u32(cairo, box_colors.background);
-	cairo_rectangle(cairo, *x, 0, width, height);
+	cairo_rectangle(cairo, *l, 0, length, breadth);
 	cairo_fill(cairo);
 
 	cairo_set_source_u32(cairo, box_colors.border);
-	cairo_rectangle(cairo, *x, 0, width, border_width);
+	cairo_rectangle(cairo, *l, 0, length, border_width);
 	cairo_fill(cairo);
-	cairo_rectangle(cairo, *x, 0, border_width, height);
+	cairo_rectangle(cairo, *l, 0, border_width, breadth);
 	cairo_fill(cairo);
-	cairo_rectangle(cairo, *x + width - border_width, 0, border_width, height);
+	cairo_rectangle(cairo, *l + length - border_width, 0, border_width, breadth);
 	cairo_fill(cairo);
-	cairo_rectangle(cairo, *x, height - border_width, width, border_width);
+	cairo_rectangle(cairo, *l, breadth - border_width, length, border_width);
 	cairo_fill(cairo);
 
-	double text_y = height / 2.0 - text_height / 2.0;
+	double text_y = breadth / 2.0 - text_height / 2.0;
 	cairo_set_source_u32(cairo, box_colors.text);
-	cairo_move_to(cairo, *x + width / 2 - text_width / 2, (int)floor(text_y));
+	cairo_move_to(cairo, *l + length / 2 - text_width / 2, (int)floor(text_y));
 	pango_printf(cairo, config->font, output->scale, config->pango_markup,
 			"%s", ws->label);
 
 	struct swaybar_hotspot *hotspot = calloc(1, sizeof(struct swaybar_hotspot));
-	hotspot->x = *x;
+	hotspot->x = *l;
 	hotspot->y = 0;
-	hotspot->width = width;
-	hotspot->height = height;
+	hotspot->width = length;
+	hotspot->height = breadth;
 	hotspot->callback = workspace_hotspot_callback;
 	hotspot->destroy = free;
 	hotspot->data = strdup(ws->name);
 	wl_list_insert(&output->hotspots, &hotspot->link);
 
-	*x += width;
-	return output->height;
+	*l += length;
+	return 0;
 }
 
 static uint32_t render_to_cairo(cairo_t *cairo, struct swaybar_output *output) {
@@ -464,7 +465,7 @@ static uint32_t render_to_cairo(cairo_t *cairo, struct swaybar_output *output) {
 
 	int th;
 	get_text_size(cairo, config->font, NULL, &th, NULL, output->scale, false, "");
-	uint32_t max_height = (th + WS_VERTICAL_PADDING * 4) / output->scale;
+	uint32_t max_breadth = (th + WS_VERTICAL_PADDING * 4) / output->scale;
 	/*
 	 * Each render_* function takes the actual height of the bar, and returns
 	 * the ideal height. If the actual height is too short, the render function
@@ -472,31 +473,31 @@ static uint32_t render_to_cairo(cairo_t *cairo, struct swaybar_output *output) {
 	 * height is too tall, the render function should adapt its drawing to
 	 * utilize the available space.
 	 */
-	double x = output->width * output->scale;
+	double l = output->length * output->scale;
 #if HAVE_TRAY
 	if (bar->tray) {
-		uint32_t h = render_tray(cairo, output, &x);
-		max_height = h > max_height ? h : max_height;
+		uint32_t b = render_tray(cairo, output, &l);
+		max_breadth = b > max_breadth ? b : max_breadth;
 	}
 #endif
 	if (bar->status) {
-		uint32_t h = render_status_line(cairo, output, &x);
-		max_height = h > max_height ? h : max_height;
+		uint32_t b = render_status_line(cairo, output, &l);
+		max_breadth = b > max_breadth ? b : max_breadth;
 	}
-	x = 0;
+	l = 0;
 	if (config->workspace_buttons) {
 		struct swaybar_workspace *ws;
 		wl_list_for_each(ws, &output->workspaces, link) {
-			uint32_t h = render_workspace_button(cairo, output, ws, &x);
-			max_height = h > max_height ? h : max_height;
+			uint32_t b = render_workspace_button(cairo, output, ws, &l);
+			max_breadth = b > max_breadth ? b : max_breadth;
 		}
 	}
 	if (config->binding_mode_indicator) {
-		uint32_t h = render_binding_mode_indicator(cairo, output, x);
-		max_height = h > max_height ? h : max_height;
+		uint32_t b = render_binding_mode_indicator(cairo, output, l);
+		max_breadth = b > max_breadth ? b : max_breadth;
 	}
 
-	return max_height > output->height ? max_height : output->height;
+	return max_breadth > output->breadth ? max_breadth : output->breadth;
 }
 
 static void output_frame_handle_done(void *data, struct wl_callback *callback,
@@ -522,6 +523,9 @@ void render_frame(struct swaybar_output *output) {
 
 	free_hotspots(&output->hotspots);
 
+	uint32_t lr_anchors = ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT | ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+	bool is_horiz = (output->bar->config->position & lr_anchors) == lr_anchors;
+
 	cairo_surface_t *recorder = cairo_recording_surface_create(
 			CAIRO_CONTENT_COLOR_ALPHA, NULL);
 	cairo_t *cairo = cairo_create(recorder);
@@ -536,26 +540,64 @@ void render_frame(struct swaybar_output *output) {
 	cairo_set_operator(cairo, CAIRO_OPERATOR_CLEAR);
 	cairo_paint(cairo);
 	cairo_restore(cairo);
-	uint32_t height = render_to_cairo(cairo, output);
-	int config_height = output->bar->config->height;
-	if (config_height > 0) {
-		height = config_height;
+	if (!is_horiz) {
+		cairo_matrix_t mtx;
+		mtx.x0 = output->width;
+		mtx.y0 = 0.;
+		mtx.xx = 0.;
+		mtx.yy = 0.;
+		mtx.xy = -1.0;
+		mtx.yx = 1.0;
+		cairo_transform(cairo, &mtx);
 	}
-	if (height != output->height || output->width == 0) {
+	output->length = is_horiz ? output->width : output->height;
+	output->breadth = is_horiz ? output->height : output->width;
+	uint32_t breadth = render_to_cairo(cairo, output);
+
+	if (!is_horiz) {
+		struct swaybar_hotspot *hotspot;
+		wl_list_for_each(hotspot, &output->hotspots, link) {
+			uint32_t t;
+			t = hotspot->height;
+			hotspot->height = hotspot->width;
+			hotspot->width = t;
+
+			t = hotspot->x;
+			hotspot->x = hotspot->y;
+			hotspot->y = t;
+		}
+	}
+
+	int config_breadth = output->bar->config->breadth;
+	if (config_breadth > 0) {
+		breadth = config_breadth;
+	}
+
+	bool reconf = false;
+	if (is_horiz) {
+		reconf = breadth != output->height || output->width == 0;
+	} else {
+		reconf = breadth != output->width || output->height == 0;
+	}
+	if (reconf) {
 		// Reconfigure surface
-		zwlr_layer_surface_v1_set_size(output->layer_surface, 0, height);
+		if (is_horiz) {
+			zwlr_layer_surface_v1_set_size(output->layer_surface, 0, breadth);
+		} else {
+			zwlr_layer_surface_v1_set_size(output->layer_surface, breadth, 0);
+		}
 		zwlr_layer_surface_v1_set_margin(output->layer_surface,
 				output->bar->config->gaps.top,
 				output->bar->config->gaps.right,
 				output->bar->config->gaps.bottom,
 				output->bar->config->gaps.left);
 		if (strcmp(output->bar->config->mode, "dock") == 0) {
-			zwlr_layer_surface_v1_set_exclusive_zone(output->layer_surface, height);
+			zwlr_layer_surface_v1_set_exclusive_zone(output->layer_surface, breadth);
 		}
 		// TODO: this could infinite loop if the compositor assigns us a
 		// different height than what we asked for
 		wl_surface_commit(output->surface);
-	} else if (height > 0) {
+	} else if (breadth > 0) {
 		// Replay recording into shm and send it off
 		output->current_buffer = get_next_buffer(output->bar->shm,
 				output->buffers,

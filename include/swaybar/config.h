@@ -42,7 +42,7 @@ struct swaybar_config {
 	list_t *bindings;
 	struct wl_list outputs; // config_output::link
 	bool all_outputs;
-	int height;
+	int breadth;
 	int status_padding;
 	int status_edge_padding;
 	struct {
