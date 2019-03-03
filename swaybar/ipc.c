@@ -230,7 +230,7 @@ static bool ipc_parse_config(
 		config->workspace_buttons = json_object_get_boolean(workspace_buttons);
 	}
 	if (bar_height) {
-		config->height = json_object_get_int(bar_height);
+		config->breadth = json_object_get_int(bar_height);
 	}
 	if (status_padding) {
 		config->status_padding = json_object_get_int(status_padding);

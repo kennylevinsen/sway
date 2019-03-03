@@ -69,6 +69,7 @@ struct swaybar_output {
 	bool focused;
 
 	uint32_t width, height;
+	uint32_t breadth, length;
 	int32_t scale;
 	enum wl_output_subpixel subpixel;
 	struct pool_buffer buffers[2];
