@@ -403,7 +403,7 @@ static enum hotspot_event_handling icon_hotspot_callback(
 
 uint32_t render_sni(cairo_t *cairo, struct swaybar_output *output, double *x,
 		struct swaybar_sni *sni) {
-	uint32_t height = output->height * output->scale;
+	uint32_t height = output->breadth * output->scale;
 	int padding = output->bar->config->tray_padding;
 	int ideal_size = height - 2*padding;
 	if ((ideal_size < sni->min_size || ideal_size > sni->max_size) && sni_ready(sni)) {
@@ -499,5 +499,5 @@ uint32_t render_sni(cairo_t *cairo, struct swaybar_output *output, double *x,
 	hotspot->data = strdup(sni->watcher_id);
 	wl_list_insert(&output->hotspots, &hotspot->link);
 
-	return output->height;
+	return 0;
 }
