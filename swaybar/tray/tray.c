@@ -108,7 +108,7 @@ static int cmp_output(const void *item, const void *cmp_to) {
 	return strcmp(item, output->name);
 }
 
-uint32_t render_tray(cairo_t *cairo, struct swaybar_output *output, double *x) {
+uint32_t render_tray(cairo_t *cairo, struct swaybar_output *output, double *l) {
 	struct swaybar_config *config = output->bar->config;
 	if (config->tray_outputs) {
 		if (list_seq_find(config->tray_outputs, cmp_output, output) == -1) {
@@ -116,14 +116,14 @@ uint32_t render_tray(cairo_t *cairo, struct swaybar_output *output, double *x) {
 		}
 	} // else display on all
 
-	if ((int) output->height*output->scale <= 2*config->tray_padding) {
+	if ((int) output->breadth*output->scale <= 2*config->tray_padding) {
 		return 2*config->tray_padding + 1;
 	}
 
 	uint32_t max_height = 0;
 	struct swaybar_tray *tray = output->bar->tray;
 	for (int i = 0; i < tray->items->length; ++i) {
-		uint32_t h = render_sni(cairo, output, x, tray->items->items[i]);
+		uint32_t h = render_sni(cairo, output, l, tray->items->items[i]);
 		max_height = h > max_height ? h : max_height;
 	}
 
