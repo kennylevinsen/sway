@@ -102,7 +102,6 @@ void get_text_size(cairo_t *cairo, const char *font, int *width, int *height,
 	PangoLayout *layout = get_pango_layout(cairo, font, buf, scale, markup);
 	if (vert) {
 		pango_context_set_base_gravity (pango_layout_get_context(layout), PANGO_GRAVITY_EAST);
-		pango_context_set_gravity_hint(pango_layout_get_context(layout), PANGO_GRAVITY_HINT_STRONG);
 	}
 	pango_cairo_update_layout(cairo, layout);
 	pango_layout_get_pixel_size(layout, width, height);
@@ -136,7 +135,6 @@ void pango_printf(cairo_t *cairo, const char *font,
 	pango_cairo_context_set_font_options(pango_layout_get_context(layout), fo);
 	if (vert) {
 		pango_context_set_base_gravity (pango_layout_get_context(layout), PANGO_GRAVITY_EAST);
-		pango_context_set_gravity_hint(pango_layout_get_context(layout), PANGO_GRAVITY_HINT_STRONG);
 	}
 	cairo_font_options_destroy(fo);
 	pango_cairo_update_layout(cairo, layout);
