@@ -1052,10 +1052,13 @@ static void container_fullscreen_workspace(struct sway_container *con) {
 				"Expected a non-fullscreen container")) {
 		return;
 	}
-	bool enable = true;
-	set_fullscreen_iterator(con, &enable);
-	container_for_each_child(con, set_fullscreen_iterator, &enable);
+	if (!con->pending.inhibit_fullscreen) {
+		bool enable = true;
+		set_fullscreen_iterator(con, &enable);
+		container_for_each_child(con, set_fullscreen_iterator, &enable);
+	}
 	con->pending.fullscreen_mode = FULLSCREEN_WORKSPACE;
+	con->pending.is_fullscreen = true;
 
 	con->saved_x = con->pending.x;
 	con->saved_y = con->pending.y;
@@ -1088,9 +1091,11 @@ static void container_fullscreen_global(struct sway_container *con) {
 				"Expected a non-fullscreen container")) {
 		return;
 	}
-	bool enable = true;
-	set_fullscreen_iterator(con, &enable);
-	container_for_each_child(con, set_fullscreen_iterator, &enable);
+	if (!con->pending.inhibit_fullscreen) {
+		bool enable = true;
+		set_fullscreen_iterator(con, &enable);
+		container_for_each_child(con, set_fullscreen_iterator, &enable);
+	}
 
 	root->fullscreen_global = con;
 	con->saved_x = con->pending.x;
@@ -1107,6 +1112,7 @@ static void container_fullscreen_global(struct sway_container *con) {
 	}
 
 	con->pending.fullscreen_mode = FULLSCREEN_GLOBAL;
+	con->pending.is_fullscreen = true;
 	container_end_mouse_operation(con);
 	ipc_event_window(con, "fullscreen_mode");
 }
@@ -1116,9 +1122,11 @@ void container_fullscreen_disable(struct sway_container *con) {
 				"Expected a fullscreen container")) {
 		return;
 	}
-	bool enable = false;
-	set_fullscreen_iterator(con, &enable);
-	container_for_each_child(con, set_fullscreen_iterator, &enable);
+	if (!con->pending.inhibit_fullscreen) {
+		bool enable = false;
+		set_fullscreen_iterator(con, &enable);
+		container_for_each_child(con, set_fullscreen_iterator, &enable);
+	}
 
 	if (container_is_floating(con)) {
 		con->pending.x = con->saved_x;
@@ -1150,6 +1158,7 @@ void container_fullscreen_disable(struct sway_container *con) {
 	}
 
 	con->pending.fullscreen_mode = FULLSCREEN_NONE;
+	con->pending.is_fullscreen = false;
 	container_end_mouse_operation(con);
 	ipc_event_window(con, "fullscreen_mode");
 
@@ -1194,6 +1203,20 @@ void container_set_fullscreen(struct sway_container *con,
 		container_fullscreen_global(con);
 		break;
 	}
+}
+
+void container_request_fullscreen(struct sway_container *con, bool enable) {
+	if (con->pending.inhibit_fullscreen) {
+		set_fullscreen_iterator(con, &enable);
+		container_for_each_child(con, set_fullscreen_iterator, &enable);
+		if (con->pending.workspace) {
+			arrange_workspace(con->pending.workspace);
+		}
+		con->pending.is_fullscreen = enable;
+		return;
+	}
+
+	container_set_fullscreen(con, enable);
 }
 
 struct sway_container *container_toplevel_ancestor(
