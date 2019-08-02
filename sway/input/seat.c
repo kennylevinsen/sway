@@ -480,6 +480,7 @@ struct sway_seat *seat_create(const char *seat_name) {
 		handle_request_set_primary_selection;
 
 	wl_list_init(&seat->devices);
+	wl_list_init(&seat->keyboard_groups);
 
 	wl_list_insert(&server.input->seats, &seat->link);
 
