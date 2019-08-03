@@ -168,21 +168,16 @@ static bool set_calibration_matrix(struct libinput_device *dev, float mat[6]) {
 	if (!libinput_device_config_calibration_has_matrix(dev)) {
 		return false;
 	}
-	bool changed = false;
-	float current[6];
-	libinput_device_config_calibration_get_matrix(dev, current);
-	for (int i = 0; i < 6; i++) {
-		if (current[i] != mat[i]) {
-			changed = true;
-			break;
-		}
-	}
-	if (changed) {
-		sway_log(SWAY_DEBUG, "calibration_set_matrix(%f, %f, %f, %f, %f, %f)",
-				mat[0], mat[1], mat[2], mat[3], mat[4], mat[5]);
-		log_status(libinput_device_config_calibration_set_matrix(dev, mat));
-	}
-	return changed;
+	// If set to the identity matrix, libinput does not store the matrix so
+	// libinput_device_config_calibration_get_matrix will give the last non-
+	// identity matrix set. This makes it so we cannot reliably test whether
+	// the matrix has changed. A libinput MR has been submitted to fix this.
+	// When it lands in a libinput release, this commit should be reverted to
+	// check whether the matrix has changed.
+	sway_log(SWAY_DEBUG, "calibration_set_matrix(%f, %f, %f, %f, %f, %f)",
+			mat[0], mat[1], mat[2], mat[3], mat[4], mat[5]);
+	log_status(libinput_device_config_calibration_set_matrix(dev, mat));
+	return true;
 }
 
 static bool config_libinput_pointer(struct libinput_device *device,
