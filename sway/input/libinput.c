@@ -166,12 +166,20 @@ static bool set_dwt(struct libinput_device *device, bool dwt) {
 
 static bool set_calibration_matrix(struct libinput_device *dev, float mat[6]) {
 	if (!libinput_device_config_calibration_has_matrix(dev)) {
+		sway_log(SWAY_DEBUG, "set_calibration_matrix: not supported");
 		return false;
 	}
 	bool changed = false;
 	float current[6];
-	libinput_device_config_calibration_get_matrix(dev, current);
+	if (libinput_device_config_calibration_get_matrix(dev, current)) {
+		sway_log(SWAY_DEBUG, "set_calibration_matrix: retrieved matrix");
+	} else {
+		sway_log(SWAY_DEBUG, "set_calibration_matrix: identity matrix");
+	}
 	for (int i = 0; i < 6; i++) {
+		sway_log(SWAY_DEBUG,
+				"set_calibration_matrix: current[%d]=%f mat[%d]=%f",
+				i, current[i], i, mat[i]);
 		if (current[i] != mat[i]) {
 			changed = true;
 			break;
