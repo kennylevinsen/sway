@@ -449,6 +449,11 @@ enum xwayland_mode {
 	XWAYLAND_MODE_IMMEDIATE,
 };
 
+enum sway_workspace_namespace {
+	WORKSPACE_NAMESPACE_GLOBAL,
+	WORKSPACE_NAMESPACE_OUTPUT,
+};
+
 /**
  * The configuration struct. The result of loading a config file.
  */
@@ -490,6 +495,7 @@ struct sway_config {
 	enum sway_fowa focus_on_window_activation;
 	enum sway_popup_during_fullscreen popup_during_fullscreen;
 	enum xwayland_mode xwayland;
+	enum sway_workspace_namespace workspace_namespace;
 
 	// swaybg
 	char *swaybg_command;

@@ -48,7 +48,7 @@ static void restore_workspaces(struct sway_output *output) {
 		}
 
 		if (other->workspaces->length == 0) {
-			char *next = workspace_next_name(other->wlr_output->name);
+			char *next = workspace_next_name(other);
 			struct sway_workspace *ws = workspace_create(other, next);
 			free(next);
 			ipc_event_workspace(NULL, ws, "init");
@@ -114,7 +114,7 @@ void output_enable(struct sway_output *output) {
 	if (!sway_assert(!output->enabled, "output is already enabled")) {
 		return;
 	}
-	struct wlr_output *wlr_output = output->wlr_output;
+
 	output->enabled = true;
 	list_add(root->outputs, output);
 
@@ -123,7 +123,7 @@ void output_enable(struct sway_output *output) {
 	struct sway_workspace *ws = NULL;
 	if (!output->workspaces->length) {
 		// Create workspace
-		char *ws_name = workspace_next_name(wlr_output->name);
+		char *ws_name = workspace_next_name(output);
 		sway_log(SWAY_DEBUG, "Creating default workspace %s", ws_name);
 		ws = workspace_create(output, ws_name);
 		// Set each seat's focus if not already set
@@ -210,6 +210,13 @@ static void output_evacuate(struct sway_output *output) {
 				workspace_begin_destroy(workspace);
 				continue;
 			}
+		}
+
+		if (config->workspace_namespace == WORKSPACE_NAMESPACE_OUTPUT &&
+				workspace_by_name(new_output, workspace->name) != NULL) {
+			// Rename the workspace to avoid name collision
+			free(workspace->name);
+			workspace->name = workspace_next_name(new_output);
 		}
 
 		workspace_output_add_priority(workspace, new_output);
