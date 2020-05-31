@@ -210,12 +210,12 @@ static void apply_container_state(struct sway_container *container,
 	struct sway_view *view = container->view;
 	// Damage the old location
 	desktop_damage_whole_container(container);
-	if (view && view->saved_buffer) {
+	if (view && view->surface && wlr_surface_has_buffer(view->surface)) {
 		struct wlr_box box = {
 			.x = container->current.content_x - view->saved_geometry.x,
 			.y = container->current.content_y - view->saved_geometry.y,
-			.width = view->saved_buffer_width,
-			.height = view->saved_buffer_height,
+			.width = view->surface->current.width,
+			.height = view->surface->current.height,
 		};
 		desktop_damage_box(&box);
 	}
@@ -228,12 +228,6 @@ static void apply_container_state(struct sway_container *container,
 	list_free(container->current.children);
 
 	memcpy(&container->current, state, sizeof(struct sway_container_state));
-
-	if (view && view->saved_buffer) {
-		if (!container->node.destroying || container->node.ntxnrefs == 1) {
-			view_remove_saved_buffer(view);
-		}
-	}
 
 	// Damage the new location
 	desktop_damage_whole_container(container);
@@ -264,6 +258,8 @@ static void apply_container_state(struct sway_container *container,
 		} else {
 			container->surface_y = container->content_y;
 		}
+		container->surface_x = container->content_x;
+		container->surface_y = container->content_y;
 		container->surface_width = view->surface->current.width;
 		container->surface_height = view->surface->current.height;
 	}
@@ -432,11 +428,10 @@ static void transaction_commit(struct sway_transaction *transaction) {
 			wlr_surface_send_frame_done(
 					node->sway_container->view->surface, &now);
 		}
-		if (node_is_view(node) && !node->sway_container->view->saved_buffer) {
-			view_save_buffer(node->sway_container->view);
+		if (node_is_view(node)) {
 			memcpy(&node->sway_container->view->saved_geometry,
-					&node->sway_container->view->geometry,
-					sizeof(struct wlr_box));
+						&node->sway_container->view->geometry,
+						sizeof(struct wlr_box));
 		}
 		node->instruction = instruction;
 	}

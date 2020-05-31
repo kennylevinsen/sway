@@ -1175,26 +1175,6 @@ bool view_is_urgent(struct sway_view *view) {
 	return view->urgent.tv_sec || view->urgent.tv_nsec;
 }
 
-void view_remove_saved_buffer(struct sway_view *view) {
-	if (!sway_assert(view->saved_buffer, "Expected a saved buffer")) {
-		return;
-	}
-	wlr_buffer_unlock(&view->saved_buffer->base);
-	view->saved_buffer = NULL;
-}
-
-void view_save_buffer(struct sway_view *view) {
-	if (!sway_assert(!view->saved_buffer, "Didn't expect saved buffer")) {
-		view_remove_saved_buffer(view);
-	}
-	if (view->surface && wlr_surface_has_buffer(view->surface)) {
-		wlr_buffer_lock(&view->surface->buffer->base);
-		view->saved_buffer = view->surface->buffer;
-		view->saved_buffer_width = view->surface->current.width;
-		view->saved_buffer_height = view->surface->current.height;
-	}
-}
-
 bool view_is_transient_for(struct sway_view *child,
 		struct sway_view *ancestor) {
 	return child->impl->is_transient_for &&

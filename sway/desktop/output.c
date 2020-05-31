@@ -511,10 +511,6 @@ static bool scan_out_fullscreen_view(struct sway_output *output,
 		return false;
 	}
 
-	if (view->saved_buffer) {
-		return false;
-	}
-
 	for (int i = 0; i < workspace->current.floating->length; ++i) {
 		struct sway_container *floater =
 			workspace->current.floating->items[i];

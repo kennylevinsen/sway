@@ -276,56 +276,13 @@ static void render_view_popups(struct sway_view *view,
 	output_view_for_each_popup(output, view, render_popup_iterator, &data);
 }
 
-static void render_saved_view(struct sway_view *view,
-		struct sway_output *output, pixman_region32_t *damage, float alpha) {
-	struct wlr_output *wlr_output = output->wlr_output;
-
-	if (!view->saved_buffer || !view->saved_buffer->texture) {
-		return;
-	}
-	struct wlr_box box = {
-		.x = view->container->surface_x - output->lx -
-			view->saved_geometry.x,
-		.y = view->container->surface_y - output->ly -
-			view->saved_geometry.y,
-		.width = view->saved_buffer_width,
-		.height = view->saved_buffer_height,
-	};
-
-	struct wlr_box output_box = {
-		.width = output->width,
-		.height = output->height,
-	};
-
-	struct wlr_box intersection;
-	bool intersects = wlr_box_intersection(&intersection, &output_box, &box);
-	if (!intersects) {
-		return;
-	}
-
-	scale_box(&box, wlr_output->scale);
-
-	float matrix[9];
-	wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, 0,
-		wlr_output->transform_matrix);
-
-	render_texture(wlr_output, damage, view->saved_buffer->texture,
-			&box, matrix, alpha);
-
-	// FIXME: we should set the surface that this saved buffer originates from
-	// as sampled here.
-	// https://github.com/swaywm/sway/pull/4465#discussion_r321082059
-}
-
 /**
  * Render a view's surface and left/bottom/right borders.
  */
 static void render_view(struct sway_output *output, pixman_region32_t *damage,
 		struct sway_container *con, struct border_colors *colors) {
 	struct sway_view *view = con->view;
-	if (view->saved_buffer) {
-		render_saved_view(view, output, damage, view->container->alpha);
-	} else if (view->surface) {
+	if (view->surface) {
 		render_view_toplevels(view, output, damage, view->container->alpha);
 	}
 
@@ -1020,9 +977,7 @@ void output_render(struct sway_output *output, struct timespec *when,
 		}
 
 		if (fullscreen_con->view) {
-			if (fullscreen_con->view->saved_buffer) {
-				render_saved_view(fullscreen_con->view, output, damage, 1.0f);
-			} else if (fullscreen_con->view->surface) {
+			if (fullscreen_con->view->surface) {
 				render_view_toplevels(fullscreen_con->view,
 						output, damage, 1.0f);
 			}

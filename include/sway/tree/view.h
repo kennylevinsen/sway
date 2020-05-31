@@ -65,9 +65,6 @@ struct sway_view {
 
 	pid_t pid;
 
-	double saved_x, saved_y;
-	int saved_width, saved_height;
-
 	// The size the view would want to be if it weren't tiled.
 	// Used when changing a view from tiled to floating.
 	int natural_width, natural_height;
@@ -79,9 +76,6 @@ struct sway_view {
 	struct timespec urgent;
 	bool allow_request_urgent;
 	struct wl_event_source *urgent_timer;
-
-	struct wlr_client_buffer *saved_buffer;
-	int saved_buffer_width, saved_buffer_height;
 
 	// The geometry for whatever the client is committing, regardless of
 	// transaction state. Updated on every commit.
