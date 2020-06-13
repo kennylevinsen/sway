@@ -150,6 +150,9 @@ static void render_surface_iterator(struct sway_output *output, struct sway_view
 	wlr_matrix_project_box(matrix, &box, transform, rotation,
 		wlr_output->transform_matrix);
 
+	box.width = fmin(box.width, view->container->current.content_width - surface->sx);
+	box.height = fmin(box.height, view->container->current.content_height - surface->sy);
+
 	render_texture(wlr_output, output_damage, texture, &box, matrix, alpha);
 
 	wlr_presentation_surface_sampled_on_output(server.presentation, surface,
@@ -283,6 +286,10 @@ static void render_saved_view(struct sway_view *view,
 	if (wl_list_empty(&view->saved_buffers)) {
 		return;
 	}
+
+	double width = view->container->current.content_width;
+	double height = view->container->current.content_height;
+
 	struct sway_saved_buffer *saved_buf;
 	wl_list_for_each(saved_buf, &view->saved_buffers, link) {
 		if (!saved_buf->buffer->texture) {
@@ -315,6 +322,8 @@ static void render_saved_view(struct sway_view *view,
 		enum wl_output_transform transform = wlr_output_transform_invert(saved_buf->transform);
 		wlr_matrix_project_box(matrix, &box, transform, 0,
 			wlr_output->transform_matrix);
+		box.width = fmin(box.width, width - saved_buf->x);
+		box.height = fmin(box.height, height - saved_buf->y);
 
 		render_texture(wlr_output, damage, saved_buf->buffer->texture,
 				&box, matrix, alpha);
