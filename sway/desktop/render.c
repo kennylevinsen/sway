@@ -342,12 +342,20 @@ static void render_view(struct sway_output *output, pixman_region32_t *damage,
 
 	struct wlr_box box;
 	float output_scale = output->wlr_output->scale;
-	float color[4];
+	float color[4] = {0, 0, 0, 1.0};
 	struct sway_container_state *state = &con->current;
 
+	if (!wl_list_empty(&view->saved_buffers)) {
+		color[0] = 1.0;
+	} else if (view->surface) {
+		color[1] = 1.0;
+	} else {
+		color[2] = 1.0;
+	}
+
 	if (state->border_left) {
-		memcpy(&color, colors->child_border, sizeof(float) * 4);
-		premultiply_alpha(color, con->alpha);
+//		memcpy(&color, colors->child_border, sizeof(float) * 4);
+//		premultiply_alpha(color, con->alpha);
 		box.x = state->x;
 		box.y = state->content_y;
 		box.width = state->border_thickness;
@@ -356,17 +364,17 @@ static void render_view(struct sway_output *output, pixman_region32_t *damage,
 		render_rect(output, damage, &box, color);
 	}
 
-	list_t *siblings = container_get_current_siblings(con);
-	enum sway_container_layout layout =
-		container_current_parent_layout(con);
+//	list_t *siblings = container_get_current_siblings(con);
+//	enum sway_container_layout layout =
+//		container_current_parent_layout(con);
 
 	if (state->border_right) {
-		if (!container_is_floating(con) && siblings->length == 1 && layout == L_HORIZ) {
-			memcpy(&color, colors->indicator, sizeof(float) * 4);
-		} else {
-			memcpy(&color, colors->child_border, sizeof(float) * 4);
-		}
-		premultiply_alpha(color, con->alpha);
+//		if (!container_is_floating(con) && siblings->length == 1 && layout == L_HORIZ) {
+//			memcpy(&color, colors->indicator, sizeof(float) * 4);
+//		} else {
+//			memcpy(&color, colors->child_border, sizeof(float) * 4);
+//		}
+//		premultiply_alpha(color, con->alpha);
 		box.x = state->content_x + state->content_width;
 		box.y = state->content_y;
 		box.width = state->border_thickness;
@@ -376,12 +384,12 @@ static void render_view(struct sway_output *output, pixman_region32_t *damage,
 	}
 
 	if (state->border_bottom) {
-		if (!container_is_floating(con) && siblings->length == 1 && layout == L_VERT) {
-			memcpy(&color, colors->indicator, sizeof(float) * 4);
-		} else {
-			memcpy(&color, colors->child_border, sizeof(float) * 4);
-		}
-		premultiply_alpha(color, con->alpha);
+//		if (!container_is_floating(con) && siblings->length == 1 && layout == L_VERT) {
+//			memcpy(&color, colors->indicator, sizeof(float) * 4);
+//		} else {
+//			memcpy(&color, colors->child_border, sizeof(float) * 4);
+//		}
+//		premultiply_alpha(color, con->alpha);
 		box.x = state->x;
 		box.y = state->content_y + state->content_height;
 		box.width = state->width;
