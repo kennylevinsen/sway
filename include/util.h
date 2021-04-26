@@ -33,7 +33,7 @@ int parse_movement_amount(int argc, char **argv,
  * Get the current time, in milliseconds.
  */
 
-uint32_t get_current_time_msec(void);
+uint32_t sway_get_current_time_msec(void);
 
 /**
  * Wrap i into the range [0, max]
