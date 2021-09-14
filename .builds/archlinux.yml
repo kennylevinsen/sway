@@ -31,3 +31,14 @@ tasks:
   - build: |
       cd sway
       ninja -C build
+  - smoke-test: |
+      cd sway
+      sudo modprobe vkms
+      udevadm settle
+      export WLR_BACKENDS=drm
+      export WLR_RENDERER=pixman
+      export WLR_DRM_DEVICES=/dev/dri/by-path/platform-vkms-card
+      sudo chmod ugo+rw /dev/dri/by-path/platform-vkms-card
+      echo -e "exec echo hello\nexec ./build/swaymsg//swaymsg exit\n" > test.config
+      sudo chmod a+s $(which seatd-launch)
+      seatd-launch -- ./build/sway/sway -c test.config -d
