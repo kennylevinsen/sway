@@ -384,10 +384,85 @@ static const uint32_t *bit_depth_preferences[] = {
 	},
 };
 
-static void queue_output_config(struct output_config *oc,
-		struct sway_output *output, struct wlr_output_state *pending) {
+struct restrictions {
+	struct wl_list blacklisted_modes;
+	struct wl_list blacklisted_render_formats;
+};
+
+struct blacklisted_mode {
+	struct wl_list link;
+	struct wlr_output_mode *mode;
+};
+
+struct blacklisted_render_format {
+	struct wl_list link;
+	uint32_t render_format;
+};
+
+static bool restrictions_contains_mode(struct restrictions *r, struct wlr_output_mode *mode) {
+	struct blacklisted_mode *bm;
+	wl_list_for_each(bm, &r->blacklisted_modes, link) {
+		if (bm->mode == mode) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool restrictions_contains_render_format(struct restrictions *r, uint32_t render_format) {
+	struct blacklisted_render_format *bf;
+	wl_list_for_each(bf, &r->blacklisted_render_formats, link) {
+		if (bf->render_format == render_format) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool restrictions_add_mode(struct restrictions *r, struct wlr_output_mode *mode) {
+	struct blacklisted_mode *bm = calloc(1, sizeof(*bm));
+	if (!bm) {
+		return false;
+	}
+
+	bm->mode = mode;
+	wl_list_insert(&r->blacklisted_modes, &bm->link);
+	return true;
+}
+
+static bool restrictions_add_render_format(struct restrictions *r, uint32_t format) {
+	struct blacklisted_render_format *bf = calloc(1, sizeof(*bf));
+	if (!bf) {
+		return false;
+	}
+
+	bf->render_format = format;
+	wl_list_insert(&r->blacklisted_render_formats, &bf->link);
+	return true;
+}
+
+static void restrictions_init(struct restrictions *r) {
+	wl_list_init(&r->blacklisted_modes);
+}
+
+static void restrictions_finish(struct restrictions *r) {
+	struct blacklisted_mode *mode, *bmtmp;
+	wl_list_for_each_safe(mode, bmtmp, &r->blacklisted_modes, link) {
+		wl_list_remove(&mode->link);
+		free(mode);
+	}
+	struct blacklisted_render_format *format, *bftmp;
+	wl_list_for_each_safe(format, bftmp, &r->blacklisted_render_formats, link) {
+		wl_list_remove(&format->link);
+		free(format);
+	}
+}
+
+static bool queue_output_config(struct output_config *oc,
+		struct sway_output *output, struct wlr_output_state *pending,
+		struct restrictions *r) {
 	if (output == root->fallback_output) {
-		return;
+		return false;
 	}
 
 	struct wlr_output *wlr_output = output->wlr_output;
@@ -395,7 +470,7 @@ static void queue_output_config(struct output_config *oc,
 	if (oc && (!oc->enabled || oc->power == 0)) {
 		sway_log(SWAY_DEBUG, "Turning off output %s", wlr_output->name);
 		wlr_output_state_set_enabled(pending, false);
-		return;
+		return true;
 	}
 
 	sway_log(SWAY_DEBUG, "Turning on output %s", wlr_output->name);
@@ -414,22 +489,25 @@ static void queue_output_config(struct output_config *oc,
 		sway_log(SWAY_DEBUG, "Set preferred mode");
 		struct wlr_output_mode *preferred_mode =
 			wlr_output_preferred_mode(wlr_output);
-		wlr_output_state_set_mode(pending, preferred_mode);
-
-		if (!wlr_output_test_state(wlr_output, pending)) {
+		if (restrictions_contains_mode(r, preferred_mode)) {
 			sway_log(SWAY_DEBUG, "Preferred mode rejected, "
 				"falling back to another mode");
 			struct wlr_output_mode *mode;
+			bool found = false;
 			wl_list_for_each(mode, &wlr_output->modes, link) {
-				if (mode == preferred_mode) {
+				if (restrictions_contains_mode(r, mode)) {
 					continue;
 				}
-
 				wlr_output_state_set_mode(pending, mode);
-				if (wlr_output_test_state(wlr_output, pending)) {
-					break;
-				}
+				found = true;
+				break;
 			}
+			if (!found) {
+				sway_log(SWAY_DEBUG, "All modes rejected");
+				return false;
+			}
+		} else {
+			wlr_output_state_set_mode(pending, preferred_mode);
 		}
 	}
 
@@ -477,6 +555,7 @@ static void queue_output_config(struct output_config *oc,
 		wlr_output_state_set_scale(pending, scale);
 	}
 
+	// TODO: Need to find a way to probe this
 	if (oc && oc->adaptive_sync != -1) {
 		sway_log(SWAY_DEBUG, "Set %s adaptive sync to %d", wlr_output->name,
 			oc->adaptive_sync);
@@ -491,17 +570,21 @@ static void queue_output_config(struct output_config *oc,
 		const uint32_t *fmts = bit_depth_preferences[oc->render_bit_depth];
 		assert(fmts);
 
+		bool found = false;
 		for (size_t i = 0; fmts[i] != DRM_FORMAT_INVALID; i++) {
-			wlr_output_state_set_render_format(pending, fmts[i]);
-			if (wlr_output_test_state(wlr_output, pending)) {
+			if (!restrictions_contains_render_format(r, fmts[i])) {
+				wlr_output_state_set_render_format(pending, fmts[i]);
+				found = true;
 				break;
 			}
-
-			sway_log(SWAY_DEBUG, "Preferred output format 0x%08x "
-				"failed to work, falling back to next in "
-				"list, 0x%08x", fmts[i], fmts[i + 1]);
+		}
+		if (!found) {
+			sway_log(SWAY_DEBUG, "All render formats rejected");
+			return false;
 		}
 	}
+
+	return true;
 }
 
 static bool finalize_output_config(struct output_config *oc, struct sway_output *output) {
@@ -684,26 +767,97 @@ bool apply_output_configs(struct matched_output_config *configs,
 		return false;
 	}
 
-	sway_log(SWAY_DEBUG, "Committing %zd outputs", configs_len);
-	for (size_t idx = 0; idx < configs_len; idx++) {
-		struct matched_output_config *cfg = &configs[idx];
-		struct wlr_backend_output_state *backend_state = &states[idx];
-
-		backend_state->output = cfg->output->wlr_output;
-		wlr_output_state_init(&backend_state->base);
-
-		sway_log(SWAY_DEBUG, "Preparing config for %s",
-			cfg->output->wlr_output->name);
-		queue_output_config(cfg->config, cfg->output, &backend_state->base);
-	}
+	bool ok = false;
+	struct restrictions r = { 0 };
+	restrictions_init(&r);
 
 	struct wlr_output_swapchain_manager swapchain_mgr;
 	wlr_output_swapchain_manager_init(&swapchain_mgr, server.backend);
 
-	bool ok = wlr_output_swapchain_manager_prepare(&swapchain_mgr, states, configs_len);
-	if (!ok) {
-		sway_log(SWAY_ERROR, "Swapchain prepare failed");
-		goto out;
+	sway_log(SWAY_DEBUG, "Committing %zd outputs", configs_len);
+	while (true) {
+		for (size_t idx = 0; idx < configs_len; idx++) {
+			struct matched_output_config *cfg = &configs[idx];
+			struct wlr_backend_output_state *backend_state = &states[idx];
+
+			backend_state->output = cfg->output->wlr_output;
+			wlr_output_state_init(&backend_state->base);
+
+			sway_log(SWAY_DEBUG, "Preparing config for %s",
+				cfg->output->wlr_output->name);
+			if (!queue_output_config(cfg->config, cfg->output, &backend_state->base, &r)) {
+				sway_log(SWAY_ERROR, "Unable to generate output config, bailing out");
+				goto out;
+			}
+		}
+
+		ok = wlr_output_swapchain_manager_prepare(&swapchain_mgr, states, configs_len);
+		if (ok) {
+			break;
+		}
+
+		sway_log(SWAY_DEBUG, "Swapchain prepare failed");
+		bool restriction_added = false;
+		for (size_t idx = 0; idx < configs_len; idx++) {
+			struct wlr_backend_output_state *backend_state = &states[idx];
+			struct wlr_output_state *state = &backend_state->base;
+			if (state->render_format != DRM_FORMAT_INVALID &&
+				state->render_format != DRM_FORMAT_XRGB8888 &&
+				!restrictions_contains_render_format(&r, state->render_format)) {
+
+				sway_log(SWAY_DEBUG, "Blacklisting render format %d to retry", state->render_format);
+				if (!restrictions_add_render_format(&r, state->render_format)) {
+					sway_log(SWAY_ERROR, "Adding restriction failed, bailing out");
+					goto out;
+				}
+				restriction_added = true;
+				break;
+			}
+		}
+		if (restriction_added) {
+			continue;
+		}
+
+		struct wlr_output_mode *highest_mode = NULL;
+		struct sway_output *affected_output = NULL;
+		for (size_t idx = 0; idx < configs_len; idx++) {
+			struct matched_output_config *cfg = &configs[idx];
+			struct wlr_backend_output_state *backend_state = &states[idx];
+			struct wlr_output_state *state = &backend_state->base;
+			if (!cfg->config->enabled) {
+				continue;
+			}
+
+			struct output_config *oc = cfg->config;
+			if (state->mode != NULL &&
+				(oc->drm_mode.type == 0 || oc->drm_mode.type == (uint32_t)-1) &&
+				oc->width <= 0 && oc->height <= 0) {
+
+				if (highest_mode == NULL) {
+					highest_mode = state->mode;
+					affected_output = cfg->output;
+					continue;
+				}
+				int old = highest_mode->width * highest_mode->height * highest_mode->refresh;
+				int new = state->mode->width * state->mode->height * state->mode->refresh;
+				if (new > old) {
+					highest_mode = state->mode;
+					affected_output = cfg->output;
+				}
+			}
+		}
+
+		if (highest_mode == NULL) {
+			sway_log(SWAY_ERROR, "Swapchain prepare failed, cannot degrade modes further");
+			goto out;
+		}
+
+		sway_log(SWAY_DEBUG, "Blacklisting %dx%d@%dmHz of %s to retry",
+			highest_mode->width, highest_mode->height, highest_mode->refresh, affected_output->wlr_output->name);
+		if (!restrictions_add_mode(&r, highest_mode)) {
+			sway_log(SWAY_ERROR, "Adding restriction failed, bailing out");
+			goto out;
+		}
 	}
 
 	if (test_only) {
@@ -746,6 +900,7 @@ bool apply_output_configs(struct matched_output_config *configs,
 	}
 
 out:
+	restrictions_finish(&r);
 	wlr_output_swapchain_manager_finish(&swapchain_mgr);
 	for (size_t idx = 0; idx < configs_len; idx++) {
 		struct wlr_backend_output_state *backend_state = &states[idx];
