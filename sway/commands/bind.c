@@ -320,6 +320,102 @@ static struct cmd_results *binding_remove(struct sway_binding *binding,
 			"for the given flags", keycombo);
 }
 
+struct translate_ctx {
+        struct xkb_keymap *keymap;
+        struct sway_binding *binding;
+        xkb_keycode_t *codes;
+        int depth;
+        bool error;
+
+        list_t *bindings;
+};
+
+static void recursive_translate_iter(struct xkb_keymap *keymap,
+		xkb_keycode_t keycode, void *data) {
+
+    struct translate_ctx *ctx = data;
+	xkb_keysym_t keysym = xkb_state_key_get_one_sym(
+		config->keysym_translation_state, keycode);
+	xkb_keysym_t *target_keysym = ctx->binding->keys->items[ctx->depth];
+
+	if (keysym != *target_keysym) {
+		return;
+	}
+
+	ctx->codes[ctx->depth] = keycode;
+
+	if (ctx->depth < ctx->binding->keys->length - 1) {
+		ctx->depth++;
+		xkb_keymap_key_for_each(ctx->keymap, recursive_translate_iter, ctx);
+		ctx->depth--;
+		return;
+	}
+
+	struct sway_binding *binding = malloc(sizeof(*binding));
+	*binding = (struct sway_binding){
+		.type = BINDING_KEYCODE,
+		.order = ctx->binding->order,
+		.flags = ctx->binding->flags,
+		.group = ctx->binding->group,
+		.modifiers = ctx->binding->modifiers,
+		.keys = create_list(),
+		.syms = create_list(),
+		.input = strdup(ctx->binding->input),
+		.command = strdup(ctx->binding->command),
+	};
+
+	if (!binding->keys || !binding->syms || !binding->input || !binding->command) {
+		// Allocation failure
+		goto err;
+	}
+
+	sway_log(SWAY_DEBUG, "Creating new synthetic keycode binding");
+	for (int idx = 0; idx < ctx->binding->keys->length; idx++) {
+		xkb_keycode_t *key = malloc(sizeof(*key));
+		if (key == NULL) {
+			goto err;
+		}
+		*key = ctx->codes[idx];
+		sway_log(SWAY_DEBUG, " - keys[%d]: %d", idx, *key);
+		list_add(binding->keys, key);
+	}
+	list_qsort(binding->keys, key_qsort_cmp);
+	list_add(ctx->bindings, binding);
+	return;
+
+err:
+	free_sway_binding(binding);
+	ctx->error = true;
+	return;
+}
+
+static list_t *recursive_translate(struct sway_binding *binding) {
+	xkb_keycode_t *codes = calloc(binding->keys->length, sizeof(*codes));
+	if (codes == NULL) {
+		return NULL;
+	}
+	struct translate_ctx ctx = {
+		.keymap = xkb_state_get_keymap(config->keysym_translation_state),
+		.binding = binding,
+		.codes = codes,
+		.depth = 0,
+		.bindings = create_list(),
+	};
+	if (ctx.bindings == NULL) {
+		return NULL;
+	}
+	xkb_keymap_key_for_each(ctx.keymap, recursive_translate_iter, &ctx);
+	if (ctx.error) {
+		for (int idx = 0; idx < ctx.bindings->length; idx++) {
+			free_sway_binding(ctx.bindings->items[idx]);
+		}
+		list_free(ctx.bindings);
+		return NULL;
+	}
+
+	return ctx.bindings;
+}
+
 static struct cmd_results *cmd_bindsym_or_bindcode(int argc, char **argv,
 		bool bindcode, bool unbind) {
 	const char *bindtype;
@@ -467,13 +563,45 @@ static struct cmd_results *cmd_bindsym_or_bindcode(int argc, char **argv,
 	// sort ascending
 	list_qsort(binding->keys, key_qsort_cmp);
 
-	// translate keysyms into keycodes
-	if (!translate_binding(binding)) {
-		sway_log(SWAY_INFO,
-				"Unable to translate bindsym into bindcode: %s", argv[0]);
-	}
+	binding->command = join_args(argv + 1, argc - 1);
+	binding->order = binding_order++;
 
 	list_t *mode_bindings;
+	if (binding->flags & BINDING_CODE) {
+		mode_bindings = config->current_mode->keycode_bindings;
+		list_t *bindings = recursive_translate(binding);
+		if (!binding) {
+			if (unbind) {
+				return cmd_results_new(CMD_FAILURE,
+						"Unable to translate bindsym into bindcode for removal: %s", argv[0]);
+			}
+			sway_log(SWAY_INFO,
+					"Unable to translate bindsym into bindcode: %s", argv[0]);
+			goto add_single;
+		}
+
+		bool ok = true;
+		for (int idx = 0; idx < bindings->length; idx++) {
+			if (unbind) {
+				ok = binding_remove(bindings->items[idx],
+						mode_bindings, bindtype, argv[0]) && ok;
+			} else {
+				ok = binding_add(bindings->items[idx],
+						mode_bindings, bindtype, argv[0], warn) && ok;
+			}
+		}
+
+		free_sway_binding(binding);
+		list_free(bindings);
+		if (ok) {
+			return cmd_results_new(CMD_SUCCESS, NULL);
+		} else {
+			return cmd_results_new(CMD_FAILURE,
+					"Unable to add or remove translated bindings: %s", argv[0]);
+		}
+	}
+
+add_single:
 	if (binding->type == BINDING_KEYCODE) {
 		mode_bindings = config->current_mode->keycode_bindings;
 	} else if (binding->type == BINDING_KEYSYM) {
@@ -486,8 +614,6 @@ static struct cmd_results *cmd_bindsym_or_bindcode(int argc, char **argv,
 		return binding_remove(binding, mode_bindings, bindtype, argv[0]);
 	}
 
-	binding->command = join_args(argv + 1, argc - 1);
-	binding->order = binding_order++;
 	return binding_add(binding, mode_bindings, bindtype, argv[0], warn);
 }
 
