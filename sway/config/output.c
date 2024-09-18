@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <wlr/config.h>
+#include <wlr/render/swapchain.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_output.h>
@@ -938,19 +939,66 @@ static bool apply_resolved_output_configs(struct matched_output_config *configs,
 	for (size_t idx = 0; idx < configs_len; idx++) {
 		struct matched_output_config *cfg = &configs[idx];
 		struct wlr_backend_output_state *backend_state = &states[idx];
+		struct wlr_output *wlr_output = backend_state->output;
 
-		struct wlr_scene_output_state_options opts = {
-			.swapchain = wlr_output_swapchain_manager_get_swapchain(
-				&swapchain_mgr, backend_state->output),
-			.color_transform = cfg->output->color_transform,
-		};
-		struct wlr_scene_output *scene_output = cfg->output->scene_output;
+		struct wlr_swapchain *swapchain =
+			wlr_output_swapchain_manager_get_swapchain(&swapchain_mgr, wlr_output);
 		struct wlr_output_state *state = &backend_state->base;
-		if (!wlr_scene_output_build_state(scene_output, state, &opts)) {
-			sway_log(SWAY_ERROR, "Building output state for '%s' failed",
-				backend_state->output->name);
+
+		// Due to the way wlr_output_layout is wired up using a commit handler,
+		// we have a chicken-and-egg problem: We cannot arrange and render a
+		// correct frame before the new configuration is committed, and we
+		// cannot commit before we have arranged and rendered in accordance to
+		// the new configuration. If we just render a frame at this time, we
+		// will be rendering without the appropriate arrange update, which
+		// leads to a glitch of one or more frames. At the same time, we cannot
+		// just always commit empty buffers here as that will appear as a
+		// glitch for outputs that were already enabled.
+		//
+		// So, we try to be smart: If an output is already enabled and did not
+		// need to change its swapchain, skip the buffer commit - one should
+		// already be present. If the output was previously disabled, commit a
+		// black buffer. Otherwise, try to render.
+		if ((state->committed & WLR_OUTPUT_STATE_ENABLED) == 0 || !state->enabled) {
+			// No buffer needed
+			continue;
+		}
+
+		if (wlr_output->enabled &&
+				swapchain == wlr_output->swapchain &&
+				((state->committed & WLR_OUTPUT_STATE_ENABLED) == 0 ||
+				state->enabled == wlr_output->enabled))  {
+			// We *should* be all good
+			continue;
+		}
+
+		// The output is being enabled or has a new swapchain, prepare a black buffer
+		struct wlr_buffer *buf = wlr_swapchain_acquire(swapchain);
+		if (buf == NULL) {
+			sway_log(SWAY_ERROR, "Could not acquire buffer for '%s'", wlr_output->name);
 			goto out;
 		}
+
+		struct wlr_render_pass *pass = wlr_renderer_begin_buffer_pass(wlr_output->renderer, buf, NULL);
+		if (pass == NULL) {
+			wlr_buffer_unlock(buf);
+			sway_log(SWAY_ERROR, "Could not get render-pass to clear '%s'", wlr_output->name);
+			goto out;
+		}
+
+		wlr_render_pass_add_rect(pass, &(struct wlr_render_rect_options){
+				.color = { 0, 0, 0, 0},
+				.blend_mode = WLR_RENDER_BLEND_MODE_NONE,
+		});
+		if (!wlr_render_pass_submit(pass)) {
+			wlr_buffer_unlock(buf);
+			sway_log(SWAY_ERROR, "Could not submit render-pass to clear '%s'", wlr_output->name);
+			goto out;
+		}
+		wlr_output_state_set_buffer(state, buf);
+
+		// Make sure the scene knows to rerender later
+		wlr_damage_ring_add_whole(&cfg->output->scene_output->damage_ring);
 	}
 
 	ok = wlr_backend_commit(server.backend, states, configs_len);
