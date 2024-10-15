@@ -296,7 +296,7 @@ static int output_repaint_timer_handler(void *data) {
 	}
 
 	if (!wlr_output_commit_state(output->wlr_output, &pending)) {
-		sway_log(SWAY_ERROR, "Page-flip failed on output %s", output->wlr_output->name);
+		// sway_log(SWAY_ERROR, "Page-flip failed on output %s", output->wlr_output->name);
 	}
 	wlr_output_state_finish(&pending);
 	return 0;
