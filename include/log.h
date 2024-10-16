@@ -17,6 +17,7 @@ typedef enum {
 typedef enum {
 	SWAY_LOG_TARGET_STANDARD = 0,
 	SWAY_LOG_TARGET_SYSLOG = 1,
+	SWAY_LOG_TARGET_PRIO_PREFIX = 2,
 } sway_log_target_t;
 
 #ifdef __GNUC__

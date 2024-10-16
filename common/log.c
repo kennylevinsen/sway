@@ -104,6 +104,31 @@ static void sway_log_stderr(sway_log_importance_t verbosity, const char *fmt,
 	fprintf(stderr, "\n");
 }
 
+// Some tools like `logger(1)` support parsing syslog priority from a prefix
+// that contains the numeric priority value, e.g. `<6>` for LOG_INFO.
+static void sway_log_prio_prefix(sway_log_importance_t verbosity, const char *fmt,
+		va_list args) {
+
+	// We could do an independent print for each of the prefix, message and
+	// trailing newline, but it's much nicer to just do a single write. musl's
+	// syslog implementation uses a 1024-byte stack buffer, so that's probably
+	// good enough.
+	char buf[1024];
+	size_t n1 = snprintf(buf, sizeof(buf) - 1, "<%d>", verbosity_syslog[verbosity]);
+	size_t n2 = vsnprintf(buf + n1, sizeof(buf) - 1 - n1, fmt, args);
+
+
+	if (n1 + n2 < sizeof(buf) - 1) {
+		buf[n1 + n2] = '\n';
+		fwrite(buf, n1 + n2 + 1, 1, stderr);
+	} else {
+		// The log message got cut off, insert ellipsis at the end so that the
+		// user can see that an overflow had occurred.
+		snprintf(buf + sizeof(buf) - 5, 5, "...\n");
+		fwrite(buf, sizeof(buf), 1, stderr);
+	}
+}
+
 static void sway_log_syslog(sway_log_importance_t verbosity, const char *fmt,
 		va_list args) {
 	vsyslog(verbosity_syslog[verbosity], fmt, args);
@@ -126,6 +151,9 @@ void _sway_vlog(sway_log_importance_t verbosity, const char *fmt, va_list args) 
 		return;
 	}
 	switch (log_target) {
+	case SWAY_LOG_TARGET_PRIO_PREFIX:
+		sway_log_prio_prefix(verbosity, fmt, args);
+		break;
 	case SWAY_LOG_TARGET_SYSLOG:
 		sway_log_syslog(verbosity, fmt, args);
 		break;

@@ -219,7 +219,7 @@ static const char usage[] =
 	"  -c, --config <config>      Specify a config file.\n"
 	"  -C, --validate             Check the validity of the config file, then exit.\n"
 	"  -d, --debug                Enables full logging, including debug information.\n"
-	"  -l, --log-target <TARGET>  One of: standard (default) or syslog.\n"
+	"  -l, --log-target <TARGET>  One of: standard (default), syslog or prio-prefix.\n"
 	"  -v, --version              Show the version number and quit.\n"
 	"  -V, --verbose              Enables more verbose logging.\n"
 	"      --get-socketpath       Gets the IPC socket path and prints it, then exits.\n"
@@ -261,6 +261,8 @@ int main(int argc, char **argv) {
 				log_target = SWAY_LOG_TARGET_STANDARD;
 			} else if (strcmp(optarg, "syslog") == 0) {
 				log_target = SWAY_LOG_TARGET_SYSLOG;
+			} else if (strcmp(optarg, "prio-prefix") == 0) {
+				log_target = SWAY_LOG_TARGET_PRIO_PREFIX;
 			} else {
 				fprintf(stderr, "unsupported log target: %s\n", optarg);
 				exit(EXIT_FAILURE);
