@@ -204,6 +204,7 @@ static const struct option long_options[] = {
 	{"config", required_argument, NULL, 'c'},
 	{"validate", no_argument, NULL, 'C'},
 	{"debug", no_argument, NULL, 'd'},
+	{"log-target", required_argument, NULL, 'l'},
 	{"version", no_argument, NULL, 'v'},
 	{"verbose", no_argument, NULL, 'V'},
 	{"get-socketpath", no_argument, NULL, 'p'},
@@ -214,24 +215,26 @@ static const struct option long_options[] = {
 static const char usage[] =
 	"Usage: sway [options] [command]\n"
 	"\n"
-	"  -h, --help             Show help message and quit.\n"
-	"  -c, --config <config>  Specify a config file.\n"
-	"  -C, --validate         Check the validity of the config file, then exit.\n"
-	"  -d, --debug            Enables full logging, including debug information.\n"
-	"  -v, --version          Show the version number and quit.\n"
-	"  -V, --verbose          Enables more verbose logging.\n"
-	"      --get-socketpath   Gets the IPC socket path and prints it, then exits.\n"
+	"  -h, --help                 Show help message and quit.\n"
+	"  -c, --config <config>      Specify a config file.\n"
+	"  -C, --validate             Check the validity of the config file, then exit.\n"
+	"  -d, --debug                Enables full logging, including debug information.\n"
+	"  -l, --log-target <TARGET>  One of: standard (default) or syslog.\n"
+	"  -v, --version              Show the version number and quit.\n"
+	"  -V, --verbose              Enables more verbose logging.\n"
+	"      --get-socketpath       Gets the IPC socket path and prints it, then exits.\n"
 	"\n";
 
 int main(int argc, char **argv) {
 	bool verbose = false, debug = false, validate = false, allow_unsupported_gpu = false;
+	sway_log_target_t log_target = SWAY_LOG_TARGET_STANDARD;
 
 	char *config_path = NULL;
 
 	int c;
 	while (1) {
 		int option_index = 0;
-		c = getopt_long(argc, argv, "hCdD:vVc:", long_options, &option_index);
+		c = getopt_long(argc, argv, "hCdD:vVl:c:", long_options, &option_index);
 		if (c == -1) {
 			break;
 		}
@@ -252,6 +255,16 @@ int main(int argc, char **argv) {
 			break;
 		case 'D': // extended debug options
 			enable_debug_flag(optarg);
+			break;
+		case 'l': // --log-target
+			if (strcmp(optarg, "standard") == 0) {
+				log_target = SWAY_LOG_TARGET_STANDARD;
+			} else if (strcmp(optarg, "syslog") == 0) {
+				log_target = SWAY_LOG_TARGET_SYSLOG;
+			} else {
+				fprintf(stderr, "unsupported log target: %s\n", optarg);
+				exit(EXIT_FAILURE);
+			}
 			break;
 		case 'u':
 			allow_unsupported_gpu = true;
@@ -295,13 +308,13 @@ int main(int argc, char **argv) {
 	// As the 'callback' function for wlr_log is equivalent to that for
 	// sway, we do not need to override it.
 	if (debug) {
-		sway_log_init(SWAY_DEBUG, sway_terminate);
+		sway_log_init(SWAY_DEBUG, sway_terminate, log_target);
 		wlr_log_init(WLR_DEBUG, handle_wlr_log);
 	} else if (verbose) {
-		sway_log_init(SWAY_INFO, sway_terminate);
+		sway_log_init(SWAY_INFO, sway_terminate, log_target);
 		wlr_log_init(WLR_INFO, handle_wlr_log);
 	} else {
-		sway_log_init(SWAY_ERROR, sway_terminate);
+		sway_log_init(SWAY_ERROR, sway_terminate, log_target);
 		wlr_log_init(WLR_ERROR, handle_wlr_log);
 	}
 

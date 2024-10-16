@@ -67,9 +67,9 @@ int main(int argc, char **argv) {
 	}
 
 	if (debug) {
-		sway_log_init(SWAY_DEBUG, NULL);
+		sway_log_init(SWAY_DEBUG, NULL, 0);
 	} else {
-		sway_log_init(SWAY_INFO, NULL);
+		sway_log_init(SWAY_INFO, NULL, 0);
 	}
 
 	if (!swaybar.id) {

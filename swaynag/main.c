@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
 	if (status != 0)  {
 		goto cleanup;
 	}
-	sway_log_init(debug ? SWAY_DEBUG : SWAY_ERROR, NULL);
+	sway_log_init(debug ? SWAY_DEBUG : SWAY_ERROR, NULL, 0);
 
 	if (!config_path) {
 		config_path = swaynag_get_config_path();

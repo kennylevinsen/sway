@@ -14,6 +14,11 @@ typedef enum {
 	SWAY_LOG_IMPORTANCE_LAST,
 } sway_log_importance_t;
 
+typedef enum {
+	SWAY_LOG_TARGET_STANDARD = 0,
+	SWAY_LOG_TARGET_SYSLOG = 1,
+} sway_log_target_t;
+
 #ifdef __GNUC__
 #define ATTRIB_PRINTF(start, end) __attribute__((format(printf, start, end)))
 #else
@@ -26,7 +31,7 @@ typedef void (*terminate_callback_t)(int exit_code);
 
 // Will log all messages less than or equal to `verbosity`
 // The `terminate` callback is called by `sway_abort`
-void sway_log_init(sway_log_importance_t verbosity, terminate_callback_t terminate);
+void sway_log_init(sway_log_importance_t verbosity, terminate_callback_t terminate, sway_log_target_t target);
 
 void _sway_log(sway_log_importance_t verbosity, const char *format, ...) ATTRIB_PRINTF(2, 3);
 void _sway_vlog(sway_log_importance_t verbosity, const char *format, va_list args) ATTRIB_PRINTF(2, 0);

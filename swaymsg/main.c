@@ -447,7 +447,7 @@ int main(int argc, char **argv) {
 	char *socket_path = NULL;
 	char *cmdtype = NULL;
 
-	sway_log_init(SWAY_INFO, NULL);
+	sway_log_init(SWAY_INFO, NULL, 0);
 
 	static const struct option long_options[] = {
 		{"help", no_argument, NULL, 'h'},
