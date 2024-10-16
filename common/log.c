@@ -33,7 +33,6 @@ bool _sway_assert(bool condition, const char *format, ...) {
 	return false;
 }
 
-static bool colored = true;
 static sway_log_importance_t log_importance = SWAY_ERROR;
 static struct timespec start_time = {-1, -1};
 
@@ -88,7 +87,7 @@ static void sway_log_stderr(sway_log_importance_t verbosity, const char *fmt,
 	unsigned c = (verbosity < SWAY_LOG_IMPORTANCE_LAST) ? verbosity :
 		SWAY_LOG_IMPORTANCE_LAST - 1;
 
-	if (colored && isatty(STDERR_FILENO)) {
+	if (isatty(STDERR_FILENO)) {
 		fprintf(stderr, "%s", verbosity_colors[c]);
 	} else {
 		fprintf(stderr, "%s ", verbosity_headers[c]);
@@ -96,7 +95,7 @@ static void sway_log_stderr(sway_log_importance_t verbosity, const char *fmt,
 
 	vfprintf(stderr, fmt, args);
 
-	if (colored && isatty(STDERR_FILENO)) {
+	if (isatty(STDERR_FILENO)) {
 		fprintf(stderr, "\x1B[0m");
 	}
 	fprintf(stderr, "\n");
