@@ -70,8 +70,6 @@ static void init_start_time(void) {
 
 static void sway_log_stderr(sway_log_importance_t verbosity, const char *fmt,
 		va_list args) {
-	init_start_time();
-
 	if (verbosity > log_importance) {
 		return;
 	}
