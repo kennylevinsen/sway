@@ -249,7 +249,7 @@ static void handle_text_input_enable(struct wl_listener *listener, void *data) {
 		return;
 	}
 	if (text_input->relay->input_method == NULL) {
-		sway_log(SWAY_INFO, "Enabling text input when input method is gone");
+		// sway_log(SWAY_INFO, "Enabling text input when input method is gone");
 		return;
 	}
 	wlr_input_method_v2_send_activate(text_input->relay->input_method);
@@ -265,12 +265,11 @@ static void handle_text_input_commit(struct wl_listener *listener,
 		return;
 	}
 	if (!text_input->input->current_enabled) {
-		sway_log(SWAY_INFO, "Inactive text input tried to commit an update");
+		// sway_log(SWAY_INFO, "Inactive text input tried to commit an update");
 		return;
 	}
-	sway_log(SWAY_DEBUG, "Text input committed update");
 	if (text_input->relay->input_method == NULL) {
-		sway_log(SWAY_INFO, "Text input committed, but input method is gone");
+		// sway_log(SWAY_INFO, "Text input committed, but input method is gone");
 		return;
 	}
 	relay_send_im_state(text_input->relay, text_input->input);
@@ -279,7 +278,7 @@ static void handle_text_input_commit(struct wl_listener *listener,
 static void relay_disable_text_input(struct sway_input_method_relay *relay,
 		struct sway_text_input *text_input) {
 	if (relay->input_method == NULL) {
-		sway_log(SWAY_DEBUG, "Disabling text input, but input method is gone");
+		// sway_log(SWAY_DEBUG, "Disabling text input, but input method is gone");
 		return;
 	}
 	wlr_input_method_v2_send_deactivate(relay->input_method);
@@ -291,7 +290,7 @@ static void handle_text_input_disable(struct wl_listener *listener,
 	struct sway_text_input *text_input = wl_container_of(listener, text_input,
 		text_input_disable);
 	if (text_input->input->focused_surface == NULL) {
-		sway_log(SWAY_DEBUG, "Disabling text input, but no longer focused");
+		// sway_log(SWAY_DEBUG, "Disabling text input, but no longer focused");
 		return;
 	}
 	relay_disable_text_input(text_input->relay, text_input);
