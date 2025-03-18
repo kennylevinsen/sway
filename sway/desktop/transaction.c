@@ -714,7 +714,7 @@ static void arrange_root(struct sway_root *root) {
  * Apply a transaction to the "current" state of the tree.
  */
 static void transaction_apply(struct sway_transaction *transaction) {
-	sway_log(SWAY_DEBUG, "Applying transaction %p", transaction);
+	// sway_log(SWAY_DEBUG, "Applying transaction %p", transaction);
 	if (debug.txn_timings) {
 		struct timespec now;
 		clock_gettime(CLOCK_MONOTONIC, &now);
@@ -818,8 +818,8 @@ static bool should_configure(struct sway_node *node,
 }
 
 static void transaction_commit(struct sway_transaction *transaction) {
-	sway_log(SWAY_DEBUG, "Transaction %p committing with %i instructions",
-			transaction, transaction->instructions->length);
+	// sway_log(SWAY_DEBUG, "Transaction %p committing with %i instructions",
+	// 		transaction, transaction->instructions->length);
 	transaction->num_waiting = 0;
 	for (int i = 0; i < transaction->instructions->length; ++i) {
 		struct sway_transaction_instruction *instruction =
