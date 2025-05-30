@@ -1511,13 +1511,23 @@ void container_detach(struct sway_container *child) {
 
 	struct sway_container *old_parent = child->pending.parent;
 	struct sway_workspace *old_workspace = child->pending.workspace;
-	list_t *siblings = container_get_siblings(child);
-	if (siblings) {
-		int index = list_find(siblings, child);
+
+	// Remove from all possible children lists
+	list_t *siblings[] = {
+		child->pending.parent ? child->pending.parent->pending.children : NULL,
+		child->pending.workspace ? child->pending.workspace->tiling : NULL,
+		child->pending.workspace ? child->pending.workspace->floating : NULL,
+	};
+	for (size_t idx = 0; idx < sizeof(siblings) / sizeof(*siblings); idx++) {
+		if (!siblings[idx]) {
+			continue;
+		}
+		int index = list_find(siblings[idx], child);
 		if (index != -1) {
-			list_del(siblings, index);
+			list_del(siblings[idx], index);
 		}
 	}
+
 	child->pending.parent = NULL;
 	child->pending.workspace = NULL;
 	container_for_each_child(child, set_workspace, NULL);
